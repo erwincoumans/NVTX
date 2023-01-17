@@ -60,6 +60,7 @@ setup(
     url="https://github.com/NVIDIA/nvtx",
     author="NVIDIA Corporation",
     license="Apache 2.0",
+    include_dirs=["C:/Program Files/NVIDIA Corporation/Nsight Systems 2022.2.1/target-windows-x64/nvtx/include"],
     classifiers=[
         "Intended Audience :: Developers",
         "Topic :: Database",
