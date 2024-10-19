@@ -31,16 +31,25 @@ jobs:
           name: 'ubuntu-qemu-aarch64'
           qemu: true
     steps:
-    - uses: actions/checkout@v2
+    - name: Check out repository
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0  # unshallow fetch for setuptools-scm
         ref: ${{ inputs.branchOrTag }}
 
-    - name: Check out PR code if prNumber is specified
-      if: inputs.prNumber > 0
-      uses: dawidd6/action-checkout-pr@v1
+    - name: Set up Python
+      # Only build sdists on x86_64
+      if: matrix.cibw_archs_linux == 'x86_64'
+      uses: actions/setup-python@v4
       with:
-        pr: ${{ inputs.prNumber }}
+        python-version: "3.x"
+
+    - name: Build source distribution
+      # Only build sdists on x86_64
+      if: matrix.cibw_archs_linux == 'x86_64'
+      run: |
+        python3 -m pip install build --user
+        python3 -m build --sdist --outdir dist/ ./python/
 
     - name: Set up QEMU
       if: matrix.qemu
@@ -49,10 +58,10 @@ jobs:
         platforms: arm64
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@v2.4.0
+      uses: pypa/cibuildwheel@v2.15.0
       env:
-        CIBW_SKIP: "*musllinux*"
-        CIBW_BUILD: "cp37-* cp38-* cp39-* cp310-*"
+        CIBW_SKIP: "*musllinux* cp36-* cp37-*"
+        CIBW_BUILD: "cp*"
         CIBW_ARCHS_LINUX: ${{ matrix.cibw_archs_linux }}
         CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
         CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
@@ -66,16 +75,16 @@ jobs:
 
     - name: Run docker smoke tests for all python versions
       run: |
-        for pyver in 3.7 3.8 3.9 3.10; do
+        for pyver in 3.8 3.9 3.10 3.11; do
           docker run --rm \
             -v $(pwd)/dist:/wheels \
-            ${{ matrix.docker_py_container}}:$pyver-bullseye \
+            ${{ matrix.docker_py_container }}:$pyver-bullseye \
             sh -c \
             "python3 -m pip install --verbose --find-links=file:///wheels --no-index nvtx && python3 -m pip check && python3 -c 'import nvtx; print(nvtx.annotate())';" ;\
         done
 
     - name: Upload distributions
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         path: dist
         name: nvtx-wheels
